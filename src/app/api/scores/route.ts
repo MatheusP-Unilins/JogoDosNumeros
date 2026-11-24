@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getScores, saveScore } from '@/lib/db';
+import { getScores, saveScore, resetScores } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
@@ -55,6 +55,21 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     return NextResponse.json(
       { success: false, error: error.message || 'Erro ao salvar pontuação' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const searchParams = request.nextUrl.searchParams;
+    const difficulty = searchParams.get('difficulty') || undefined;
+
+    await resetScores(difficulty);
+    return NextResponse.json({ success: true, message: 'Hall da fama resetado com sucesso!' });
+  } catch (error: any) {
+    return NextResponse.json(
+      { success: false, error: error.message || 'Erro ao resetar hall da fama' },
       { status: 500 }
     );
   }

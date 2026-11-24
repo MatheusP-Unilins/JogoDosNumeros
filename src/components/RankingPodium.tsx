@@ -1,7 +1,7 @@
 'use client';
 
-import React from 'react';
-import { Award, Trophy, Medal, Crown } from 'lucide-react';
+import React, { useState } from 'react';
+import { Award, Trophy, Medal, Crown, Trash2 } from 'lucide-react';
 import { DIFFICULTIES, DifficultyKey } from '@/types/game';
 import { ScoreEntry } from '@/lib/db';
 
@@ -9,6 +9,7 @@ interface RankingPodiumProps {
   scores: ScoreEntry[];
   activeDifficulty: DifficultyKey;
   onSelectDifficulty: (d: DifficultyKey) => void;
+  onResetScores: (d?: DifficultyKey) => void;
   isLoading: boolean;
 }
 
@@ -16,8 +17,11 @@ export const RankingPodium: React.FC<RankingPodiumProps> = ({
   scores,
   activeDifficulty,
   onSelectDifficulty,
+  onResetScores,
   isLoading,
 }) => {
+  const [isConfirmingReset, setIsConfirmingReset] = useState(false);
+
   // Filtra por dificuldade ativa e ordena por menor número de tentativas
   const filtered = scores
     .filter((s) => s.difficulty === activeDifficulty)
@@ -28,25 +32,63 @@ export const RankingPodium: React.FC<RankingPodiumProps> = ({
   const top3 = filtered[2];
   const rest = filtered.slice(3, 8);
 
+  const handleConfirmReset = () => {
+    onResetScores(activeDifficulty);
+    setIsConfirmingReset(false);
+  };
+
   return (
     <div className="bg-white rounded-3xl border-4 border-cajua-charcoal shadow-pop p-4 sm:p-5 flex flex-col h-full justify-between overflow-hidden">
       {/* Header & Tabs */}
       <div className="flex flex-col gap-3 border-b-2 border-cajua-sand pb-4">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-cajua-yellow border-2 border-cajua-charcoal flex items-center justify-center shadow-pop shrink-0">
-            <Trophy className="w-5 h-5 text-cajua-charcoal" />
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-cajua-yellow border-2 border-cajua-charcoal flex items-center justify-center shadow-pop shrink-0">
+              <Trophy className="w-5 h-5 text-cajua-charcoal" />
+            </div>
+            <div>
+              <h2 className="font-fredoka text-xl font-bold text-cajua-charcoal leading-tight">
+                Hall da Fama
+              </h2>
+              <p className="text-xs text-neutral-500 font-medium leading-tight">
+                Menor quantidade de chutes válidos
+              </p>
+            </div>
           </div>
+
+          {/* Botão de Resetar o Hall da Fama */}
           <div>
-            <h2 className="font-fredoka text-xl font-bold text-cajua-charcoal leading-tight">
-              Hall da Fama
-            </h2>
-            <p className="text-xs text-neutral-500 font-medium leading-tight">
-              Menor quantidade de chutes válidos
-            </p>
+            {!isConfirmingReset ? (
+              <button
+                type="button"
+                onClick={() => setIsConfirmingReset(true)}
+                title="Resetar Hall da Fama desta dificuldade"
+                className="p-2 rounded-xl bg-neutral-100 hover:bg-red-50 text-neutral-500 hover:text-red-600 border border-neutral-300 hover:border-red-300 transition-all"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            ) : (
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={handleConfirmReset}
+                  className="px-2 py-1 rounded-lg bg-red-600 text-white font-fredoka font-bold text-[11px] shadow-sm hover:bg-red-700"
+                >
+                  Confirmar?
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsConfirmingReset(false)}
+                  className="px-2 py-1 rounded-lg bg-neutral-200 text-neutral-700 font-fredoka font-bold text-[11px] hover:bg-neutral-300"
+                >
+                  X
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Difficulty Selector Tabs - Compacto e perfeitamente contido */}
+        {/* Difficulty Selector Tabs */}
         <div className="grid grid-cols-3 gap-1.5 p-1 bg-cajua-sand rounded-xl border-2 border-cajua-charcoal">
           {(Object.keys(DIFFICULTIES) as DifficultyKey[]).map((key) => {
             const isSelected = activeDifficulty === key;
@@ -54,7 +96,10 @@ export const RankingPodium: React.FC<RankingPodiumProps> = ({
               <button
                 key={key}
                 type="button"
-                onClick={() => onSelectDifficulty(key)}
+                onClick={() => {
+                  setIsConfirmingReset(false);
+                  onSelectDifficulty(key);
+                }}
                 className={`py-1.5 px-2 rounded-lg text-xs font-fredoka font-bold text-center transition-all truncate ${
                   isSelected
                     ? `${DIFFICULTIES[key].badgeBg} border border-cajua-charcoal shadow-sm`
@@ -75,7 +120,7 @@ export const RankingPodium: React.FC<RankingPodiumProps> = ({
         </div>
       ) : (
         <div className="flex-1 flex flex-col justify-center my-3">
-          {/* PÓDIO TOP 3 COMPACTO */}
+          {/* PÓDIO TOP 3 */}
           <div className="grid grid-cols-3 gap-2 items-end max-w-sm mx-auto w-full pt-4">
             {/* 2º Lugar */}
             <div className="flex flex-col items-center">

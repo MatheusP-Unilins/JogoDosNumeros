@@ -23,7 +23,7 @@ import { SmooshCupGraphic } from '@/components/DecorativeGraphics';
 import { ScoreEntry } from '@/lib/db';
 
 export default function GamePage() {
-  // 1. Identificação do Jogador (Etapa Pré-Jogo)
+  // 1. Identificação do Jogador
   const [playerNameInput, setPlayerNameInput] = useState<string>('');
   const [activePlayerName, setActivePlayerName] = useState<string>('');
   const [difficulty, setDifficulty] = useState<DifficultyKey>('iniciante');
@@ -73,6 +73,21 @@ export default function GamePage() {
   useEffect(() => {
     fetchScores();
   }, []);
+
+  // Resetar scores do Hall da Fama
+  const handleResetScores = async (diffKey?: DifficultyKey) => {
+    try {
+      setIsLoadingScores(true);
+      await fetch(`/api/scores${diffKey ? `?difficulty=${diffKey}` : ''}`, {
+        method: 'DELETE',
+      });
+      fetchScores(diffKey);
+    } catch (e) {
+      console.error('Falha ao resetar scores:', e);
+    } finally {
+      setIsLoadingScores(false);
+    }
+  };
 
   // Iniciar nova partida
   const startNewGame = (diffKey: DifficultyKey = difficulty) => {
@@ -129,7 +144,7 @@ export default function GamePage() {
     });
   };
 
-  // Lógica de Processamento do Chute com validações estritas
+  // Lógica de Processamento do Chute
   const handleMakeGuess = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (isWon || isGameOver || !activePlayerName) return;
@@ -146,7 +161,7 @@ export default function GamePage() {
       return;
     }
 
-    // Regra 1: Bloqueio estrito de valores menores que o mínimo (inclusive negativos e zero)
+    // Bloqueio estrito de valores menores que o mínimo
     if (guess < currentDiff.min) {
       setStatusMessage({
         text: `Valor inválido: ${guess}. O número não pode ser menor que ${currentDiff.min}.`,
@@ -156,7 +171,7 @@ export default function GamePage() {
       return;
     }
 
-    // Regra 2: Bloqueio estrito de valores maiores que o máximo
+    // Bloqueio estrito de valores maiores que o máximo
     if (guess > currentDiff.max) {
       setStatusMessage({
         text: `Valor acima do valor máximo possível (Maior que ${currentDiff.max})`,
@@ -166,7 +181,7 @@ export default function GamePage() {
       return;
     }
 
-    // Regra 3: Validação de Chute Duplicado (não desconta tentativa)
+    // Validação de Chute Duplicado
     if (usedNumbers.has(guess)) {
       setStatusMessage({
         text: 'Valor duplicado, já foi usado',
@@ -184,11 +199,12 @@ export default function GamePage() {
     nextUsed.add(guess);
     setUsedNumbers(nextUsed);
 
-    // Regra 4: Checagem de Acerto
+    // Checagem de Acerto
     if (guess === secretNumber) {
       setIsWon(true);
+      const winMessage = `Acertou! O número escolhido foi ${secretNumber}`;
       setStatusMessage({
-        text: `Acertou! O número escolhido foi ${secretNumber}`,
+        text: winMessage,
         type: 'success',
       });
 
@@ -204,14 +220,13 @@ export default function GamePage() {
       setGuessHistory((prev) => [
         {
           value: guess,
-          feedback: `Acertou! O número é ${secretNumber}`,
+          feedback: winMessage,
           type: 'correct',
           guessNumber: nextAttempts,
         },
         ...prev,
       ]);
 
-      // Salva no banco de dados Neon
       try {
         await fetch('/api/scores', {
           method: 'POST',
@@ -232,7 +247,7 @@ export default function GamePage() {
       return;
     }
 
-    // Regra 5: Chute Incorreto (Mensagens consistentes e sem divergência)
+    // Chute Incorreto: TEXTOS 100% IDÊNTICOS ENTRE O BANNER E O HISTÓRICO
     const isHigher = guess > secretNumber;
     const feedbackText = isHigher
       ? `${guess} é maior que o valor escolhido`
@@ -316,7 +331,7 @@ export default function GamePage() {
         )}
       </header>
 
-      {/* TELA DE BOAS-VINDAS / IDENTIFICAÇÃO OBRIGATÓRIA ANTES DE JOGAR */}
+      {/* TELA DE BOAS-VINDAS / IDENTIFICAÇÃO OBRIGATÓRIA */}
       {!activePlayerName ? (
         <div className="bg-white p-6 sm:p-12 rounded-3xl border-4 border-cajua-charcoal shadow-pop max-w-xl mx-auto text-center space-y-6">
           <div className="w-16 h-16 rounded-2xl bg-cajua-yellow border-3 border-cajua-charcoal mx-auto flex items-center justify-center shadow-pop">
@@ -352,9 +367,9 @@ export default function GamePage() {
           </form>
         </div>
       ) : (
-        /* ÁREA CENTRAL DO JOGO QUANDO O JOGADOR ESTÁ IDENTIFICADO */
+        /* ÁREA CENTRAL DO JOGO */
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 items-stretch">
-          {/* COLUNA ESQUERDA: TABULEIRO E AÇÕES (7 colunas) */}
+          {/* COLUNA ESQUERDA: TABULEIRO E AÇÕES */}
           <div className="lg:col-span-7 flex flex-col gap-4 sm:gap-5">
             {/* SELETOR DE DIFICULDADES */}
             <div className="bg-white p-4 sm:p-5 rounded-3xl border-4 border-cajua-charcoal shadow-pop space-y-3">
@@ -428,7 +443,7 @@ export default function GamePage() {
                 </div>
               </div>
 
-              {/* Form de Chute com restrição min/max no input */}
+              {/* Form de Chute */}
               <form onSubmit={handleMakeGuess} className="space-y-3">
                 <label className="block">
                   <span className="font-fredoka text-xs sm:text-sm font-bold text-neutral-700">
@@ -495,7 +510,7 @@ export default function GamePage() {
                 </div>
               </div>
 
-              {/* OPÇÕES AO FINALIZAR PARTIDA (JOGAR NOVAMENTE OU OUTRO JOGADOR) */}
+              {/* OPÇÕES AO FINALIZAR PARTIDA */}
               {(isWon || isGameOver) && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                   <button
@@ -518,7 +533,7 @@ export default function GamePage() {
               )}
             </div>
 
-            {/* HISTÓRICO DE CHUTES COM BOTÃO DE LIMPAR */}
+            {/* HISTÓRICO DE CHUTES COM TEXTO EXATO E BOTÃO DE LIMPAR */}
             {guessHistory.length > 0 && (
               <div className="bg-white p-4 sm:p-5 rounded-3xl border-4 border-cajua-charcoal shadow-pop space-y-2.5">
                 <div className="flex items-center justify-between">
@@ -540,30 +555,33 @@ export default function GamePage() {
                   {guessHistory.map((item, idx) => (
                     <div
                       key={idx}
-                      className="flex items-center justify-between p-2 rounded-xl bg-cajua-sand/70 border border-cajua-charcoal/20 text-xs"
+                      className="flex items-center justify-between p-2.5 rounded-xl bg-cajua-sand/70 border border-cajua-charcoal/20 text-xs sm:text-sm"
                     >
                       <div className="flex items-center gap-2">
-                        <span className="font-fredoka font-bold bg-white px-1.5 py-0.5 rounded border border-cajua-charcoal/30">
+                        <span className="font-fredoka font-bold bg-white px-2 py-0.5 rounded-md border border-cajua-charcoal/30">
                           #{item.guessNumber}
                         </span>
-                        <span className="font-fredoka font-extrabold text-sm text-cajua-charcoal">
+                        <span className="font-fredoka font-extrabold text-base text-cajua-charcoal">
                           {item.value}
                         </span>
                       </div>
-                      <div className="flex items-center gap-1 font-fredoka font-bold">
+                      <div className="flex items-center gap-1.5 font-fredoka font-semibold">
                         {item.type === 'higher' && (
-                          <span className="text-red-700 flex items-center gap-1 bg-red-100/80 px-2 py-0.5 rounded-lg border border-red-300">
-                            <ArrowDownCircle className="w-3.5 h-3.5" /> Menor que o escolhido
+                          <span className="text-red-700 flex items-center gap-1.5 bg-red-100/90 px-2.5 py-1 rounded-lg border border-red-300">
+                            <ArrowDownCircle className="w-4 h-4 text-red-600" />
+                            <span>{item.value} é maior que o valor escolhido</span>
                           </span>
                         )}
                         {item.type === 'lower' && (
-                          <span className="text-blue-700 flex items-center gap-1 bg-blue-100/80 px-2 py-0.5 rounded-lg border border-blue-300">
-                            <ArrowUpCircle className="w-3.5 h-3.5" /> Maior que o escolhido
+                          <span className="text-blue-700 flex items-center gap-1.5 bg-blue-100/90 px-2.5 py-1 rounded-lg border border-blue-300">
+                            <ArrowUpCircle className="w-4 h-4 text-blue-600" />
+                            <span>{item.value} é menor que o valor escolhido</span>
                           </span>
                         )}
                         {item.type === 'correct' && (
-                          <span className="text-green-700 flex items-center gap-1 bg-green-100/80 px-2 py-0.5 rounded-lg border border-green-300">
-                            <CheckCircle2 className="w-3.5 h-3.5" /> Acertou!
+                          <span className="text-green-700 flex items-center gap-1.5 bg-green-100/90 px-2.5 py-1 rounded-lg border border-green-300">
+                            <CheckCircle2 className="w-4 h-4 text-green-600" />
+                            <span>Acertou!</span>
                           </span>
                         )}
                       </div>
@@ -574,7 +592,7 @@ export default function GamePage() {
             )}
           </div>
 
-          {/* COLUNA DIREITA: PÓDIO E RANKING NEON (5 colunas) */}
+          {/* COLUNA DIREITA: PÓDIO E RANKING NEON */}
           <div className="lg:col-span-5 flex flex-col">
             <RankingPodium
               scores={scores}
@@ -583,6 +601,7 @@ export default function GamePage() {
                 setRankingDifficulty(d);
                 fetchScores(d);
               }}
+              onResetScores={(d) => handleResetScores(d)}
               isLoading={isLoadingScores}
             />
           </div>
