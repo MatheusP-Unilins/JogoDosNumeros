@@ -12,7 +12,6 @@ import {
   ArrowDownCircle,
   Play,
   User,
-  Heart,
   History,
 } from 'lucide-react';
 import { DIFFICULTIES, DifficultyKey, GuessRecord } from '@/types/game';
@@ -23,7 +22,6 @@ import { ScoreEntry } from '@/lib/db';
 export default function GamePage() {
   // Configuração e Estado Geral
   const [playerName, setPlayerName] = useState<string>('');
-  const [isNameSet, setIsNameSet] = useState<boolean>(false);
   const [difficulty, setDifficulty] = useState<DifficultyKey>('iniciante');
 
   // Estado do Jogo Ativo
@@ -75,7 +73,6 @@ export default function GamePage() {
   // Iniciar nova partida
   const startNewGame = (diffKey: DifficultyKey = difficulty) => {
     const config = DIFFICULTIES[diffKey];
-    // Número aleatório inclusivo entre min e max
     const randomNum = Math.floor(Math.random() * (config.max - config.min + 1)) + config.min;
     setSecretNumber(randomNum);
     setDifficulty(diffKey);
@@ -92,12 +89,11 @@ export default function GamePage() {
     });
   };
 
-  // Inicializa o primeiro jogo
   useEffect(() => {
     startNewGame('iniciante');
   }, []);
 
-  // Lógica de Processamento do Chute (Validações Estritas)
+  // Lógica de Processamento do Chute
   const handleMakeGuess = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (isWon || isGameOver) return;
@@ -114,9 +110,7 @@ export default function GamePage() {
       return;
     }
 
-    // Regra 1: Validação de Valor Máximo / Mínimo
-    // O sistema não pode deixar a pessoa colocar um número maior que o valor máximo da dificuldade escolhida,
-    // não deve contabilizar o chute e deve informar a mensagem
+    // Regra 1: Validação de Valor Máximo / Mínimo (Não consome tentativa)
     if (guess > currentDiff.max) {
       setStatusMessage({
         text: `Valor acima do valor máximo possível (Maior que ${currentDiff.max})`,
@@ -135,8 +129,7 @@ export default function GamePage() {
       return;
     }
 
-    // Regra 2: Validação de Chute Duplicado
-    // O sistema não pode deixar a pessoa usar duas vezes o mesmo valor como chute e não deve contabilizar
+    // Regra 2: Validação de Chute Duplicado (Não consome tentativa)
     if (usedNumbers.has(guess)) {
       setStatusMessage({
         text: 'Valor duplicado, já foi usado',
@@ -146,7 +139,7 @@ export default function GamePage() {
       return;
     }
 
-    // A partir daqui, o chute é VÁLIDO e contabiliza
+    // Chute Válido
     const nextAttempts = validAttemptsCount + 1;
     setValidAttemptsCount(nextAttempts);
 
@@ -162,17 +155,14 @@ export default function GamePage() {
         type: 'success',
       });
 
-      // Dispara confetes coloridos
       try {
         confetti({
-          particleCount: 120,
-          spread: 80,
+          particleCount: 100,
+          spread: 70,
           origin: { y: 0.6 },
           colors: ['#FFCA28', '#FF7043', '#E53935', '#43A047', '#1E88E5'],
         });
-      } catch (err) {
-        // Confetti fallback silencioso
-      }
+      } catch (err) {}
 
       setGuessHistory((prev) => [
         {
@@ -184,7 +174,6 @@ export default function GamePage() {
         ...prev,
       ]);
 
-      // Salva no banco de dados Neon
       const player = playerName.trim() || 'Jogador Anônimo';
       try {
         await fetch('/api/scores', {
@@ -197,7 +186,6 @@ export default function GamePage() {
             secret_number: secretNumber,
           }),
         });
-        // Atualiza a tabela de ranking
         fetchScores(currentDiff.key);
       } catch (err) {
         console.error('Erro ao gravar score:', err);
@@ -207,7 +195,7 @@ export default function GamePage() {
       return;
     }
 
-    // Regra 4: Chute Incorreto (Maior ou Menor)
+    // Regra 4: Chute Incorreto
     const isHigher = guess > secretNumber;
     const feedbackText = isHigher
       ? `${guess} é maior que o valor escolhido`
@@ -228,11 +216,10 @@ export default function GamePage() {
       ...prev,
     ]);
 
-    // Verifica se esgotou as chances
     if (nextAttempts >= currentDiff.maxAttempts) {
       setIsGameOver(true);
       setStatusMessage({
-        text: `Fim de jogo! Suas chances acabaram. O número secreto era ${secretNumber}.`,
+        text: `Fim de jogo! Suas chances acabaram. O número era ${secretNumber}.`,
         type: 'error',
       });
     }
@@ -241,98 +228,81 @@ export default function GamePage() {
   };
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 sm:py-12 space-y-10">
-      {/* HEADER PRINCIPAL */}
-      <header className="flex flex-col md:flex-row items-center justify-between gap-6 bg-white p-6 sm:p-8 rounded-3xl border-4 border-cajua-charcoal shadow-pop">
-        <div className="flex items-center gap-5">
-          <SmooshCupGraphic color={currentDiff.cupColor} label={currentDiff.label} />
+    <div className="w-full max-w-7xl mx-auto px-3 sm:px-6 py-4 sm:py-8 space-y-4 sm:space-y-6">
+      {/* HEADER COMPACTO E RESPONSIVO */}
+      <header className="flex flex-col md:flex-row items-center justify-between gap-4 bg-white p-4 sm:p-5 rounded-3xl border-4 border-cajua-charcoal shadow-pop">
+        <div className="flex items-center gap-4 w-full md:w-auto">
+          <div className="scale-75 sm:scale-90 origin-left -mr-3 sm:mr-0">
+            <SmooshCupGraphic color={currentDiff.cupColor} label={currentDiff.label} />
+          </div>
           <div>
-            <div className="flex items-center gap-2 mb-1 flex-wrap">
-              <span className="px-3 py-0.5 rounded-full bg-cajua-yellow border-2 border-cajua-charcoal font-fredoka font-bold text-xs uppercase tracking-wide">
+            <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+              <span className="px-2.5 py-0.5 rounded-full bg-cajua-yellow border-2 border-cajua-charcoal font-fredoka font-bold text-[10px] uppercase tracking-wide">
                 Identidade Cajuá
               </span>
               <span className="text-xs font-semibold text-neutral-500">
                 {currentDiff.fruit}
               </span>
             </div>
-            <h1 className="font-fredoka text-3xl sm:text-5xl font-extrabold tracking-tight text-cajua-charcoal">
+            <h1 className="font-fredoka text-2xl sm:text-4xl font-extrabold tracking-tight text-cajua-charcoal">
               Jogo dos Números
             </h1>
-            <p className="text-sm sm:text-base text-neutral-600 font-medium mt-1">
+            <p className="text-xs sm:text-sm text-neutral-600 font-medium">
               Descubra o número secreto com a menor quantidade de chutes!
             </p>
           </div>
         </div>
 
         {/* Identificação do Jogador */}
-        <div className="w-full md:w-auto flex flex-col items-end gap-2 bg-cajua-sand p-4 rounded-2xl border-2 border-cajua-charcoal shadow-pop">
-          <div className="flex items-center gap-2 text-xs font-fredoka font-bold text-cajua-charcoal">
-            <User className="w-4 h-4 text-cajua-orange" />
+        <div className="w-full md:w-auto flex flex-col items-start md:items-end gap-1.5 bg-cajua-sand p-3 rounded-2xl border-2 border-cajua-charcoal shadow-sm">
+          <div className="flex items-center gap-1.5 text-xs font-fredoka font-bold text-cajua-charcoal">
+            <User className="w-3.5 h-3.5 text-cajua-orange" />
             <span>NOME DO JOGADOR:</span>
           </div>
-          <div className="flex gap-2 w-full md:w-auto">
-            <input
-              type="text"
-              value={playerName}
-              onChange={(e) => setPlayerName(e.target.value)}
-              placeholder="Digite seu apelido"
-              maxLength={25}
-              className="px-3 py-1.5 rounded-xl border-2 border-cajua-charcoal font-fredoka text-sm w-full md:w-48 focus:outline-none focus:ring-2 focus:ring-cajua-yellow"
-            />
-            {playerName && !isNameSet && (
-              <button
-                onClick={() => setIsNameSet(true)}
-                className="px-3 py-1 bg-cajua-green text-white font-fredoka font-bold text-xs rounded-xl border-2 border-cajua-charcoal btn-pop shadow-pop"
-              >
-                Salvar
-              </button>
-            )}
-          </div>
+          <input
+            type="text"
+            value={playerName}
+            onChange={(e) => setPlayerName(e.target.value)}
+            placeholder="Digite seu nome/apelido"
+            maxLength={25}
+            className="px-3 py-1.5 rounded-xl border-2 border-cajua-charcoal font-fredoka text-xs sm:text-sm w-full md:w-56 bg-white focus:outline-none focus:ring-2 focus:ring-cajua-yellow"
+          />
         </div>
       </header>
 
-      {/* ÁREA CENTRAL DO JOGO */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        {/* COLUNA ESQUERDA: CONTROLES E TABULEIRO */}
-        <div className="lg:col-span-7 space-y-6">
+      {/* ÁREA CENTRAL - GRADE RESPONSIVA EQUILIBRADA */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 items-stretch">
+        {/* COLUNA ESQUERDA: CONTROLES E TABULEIRO (7 colunas) */}
+        <div className="lg:col-span-7 flex flex-col gap-4 sm:gap-5">
           {/* SELETOR DE DIFICULDADES */}
-          <div className="bg-white p-6 rounded-3xl border-4 border-cajua-charcoal shadow-pop space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="font-fredoka font-bold text-sm text-neutral-600 uppercase tracking-wider">
-                1. Escolha a Dificuldade
-              </span>
-              <span className="text-xs text-neutral-500 font-medium">
-                (Reinicia a partida com novo número)
-              </span>
+          <div className="bg-white p-4 sm:p-5 rounded-3xl border-4 border-cajua-charcoal shadow-pop space-y-3">
+            <div className="flex items-center justify-between text-xs font-fredoka font-bold text-neutral-600 uppercase tracking-wider">
+              <span>1. Escolha a Dificuldade</span>
+              <span className="text-[11px] text-neutral-400 font-normal">Reinicia a partida</span>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-3 gap-2 sm:gap-3">
               {(Object.keys(DIFFICULTIES) as DifficultyKey[]).map((key) => {
                 const conf = DIFFICULTIES[key];
                 const active = difficulty === key;
                 return (
                   <button
                     key={key}
+                    type="button"
                     onClick={() => startNewGame(key)}
-                    className={`p-4 rounded-2xl border-3 border-cajua-charcoal text-left transition-all relative overflow-hidden btn-pop ${
+                    className={`p-2.5 sm:p-3.5 rounded-2xl border-2 sm:border-3 border-cajua-charcoal text-left transition-all relative overflow-hidden btn-pop ${
                       active
                         ? `${conf.color} shadow-pop`
-                        : 'bg-white hover:bg-neutral-50 opacity-75'
+                        : 'bg-white hover:bg-neutral-50 opacity-80'
                     }`}
                   >
-                    {active && (
-                      <span className="absolute top-2 right-2 flex h-3 w-3">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cajua-charcoal opacity-75" />
-                        <span className="relative inline-flex rounded-full h-3 w-3 bg-cajua-charcoal" />
-                      </span>
-                    )}
-                    <h3 className="font-fredoka font-bold text-lg text-cajua-charcoal">
+                    <h3 className="font-fredoka font-bold text-xs sm:text-base text-cajua-charcoal truncate">
                       {conf.label}
                     </h3>
-                    <p className="text-xs text-neutral-700 font-semibold mt-1">
+                    <p className="text-[11px] sm:text-xs text-neutral-700 font-semibold mt-0.5">
                       {conf.min} a {conf.max}
                     </p>
-                    <span className="inline-block mt-2 text-[11px] font-bold px-2 py-0.5 rounded-full bg-white/80 border border-cajua-charcoal/30">
+                    <span className="inline-block mt-1.5 text-[10px] sm:text-xs font-bold px-1.5 sm:px-2 py-0.5 rounded-full bg-white/90 border border-cajua-charcoal/30">
                       {conf.maxAttempts} chances
                     </span>
                   </button>
@@ -342,71 +312,71 @@ export default function GamePage() {
           </div>
 
           {/* PAINEL DE ENTRADA DO CHUTE */}
-          <div className="bg-white p-6 sm:p-8 rounded-3xl border-4 border-cajua-charcoal shadow-pop space-y-6">
+          <div className="bg-white p-4 sm:p-6 rounded-3xl border-4 border-cajua-charcoal shadow-pop space-y-4">
             {/* Status e Contador de Chances */}
-            <div className="flex items-center justify-between gap-4 p-4 rounded-2xl bg-cajua-sand border-2 border-cajua-charcoal">
+            <div className="flex items-center justify-between gap-2 p-3 sm:p-3.5 rounded-2xl bg-cajua-sand border-2 border-cajua-charcoal">
               <div>
-                <span className="text-xs font-bold text-neutral-500 uppercase tracking-wider block">
+                <span className="text-[10px] sm:text-xs font-bold text-neutral-500 uppercase tracking-wider block">
                   Chances Restantes
                 </span>
-                <div className="flex items-center gap-1.5 mt-1">
+                <div className="flex items-center gap-1 sm:gap-1.5 mt-1 flex-wrap">
                   {Array.from({ length: currentDiff.maxAttempts }).map((_, idx) => (
                     <div
                       key={idx}
-                      className={`w-3.5 h-6 rounded-md border-2 border-cajua-charcoal transition-all ${
+                      className={`w-2.5 sm:w-3.5 h-5 sm:h-6 rounded-md border border-cajua-charcoal transition-all ${
                         idx < remainingChances
                           ? 'bg-cajua-red shadow-sm'
-                          : 'bg-neutral-300 opacity-40'
+                          : 'bg-neutral-300 opacity-30'
                       }`}
                     />
                   ))}
-                  <span className="ml-2 font-fredoka font-bold text-lg text-cajua-charcoal">
-                    {remainingChances} / {currentDiff.maxAttempts}
+                  <span className="ml-1 sm:ml-2 font-fredoka font-bold text-sm sm:text-base text-cajua-charcoal">
+                    {remainingChances}/{currentDiff.maxAttempts}
                   </span>
                 </div>
               </div>
 
-              <div className="text-right">
-                <span className="text-xs font-bold text-neutral-500 uppercase tracking-wider block">
+              <div className="text-right shrink-0">
+                <span className="text-[10px] sm:text-xs font-bold text-neutral-500 uppercase tracking-wider block">
                   Chutes Válidos
                 </span>
-                <span className="font-fredoka font-extrabold text-2xl text-cajua-charcoal">
+                <span className="font-fredoka font-extrabold text-xl sm:text-2xl text-cajua-charcoal">
                   {validAttemptsCount}
                 </span>
               </div>
             </div>
 
             {/* Form de Chute */}
-            <form onSubmit={handleMakeGuess} className="space-y-4">
+            <form onSubmit={handleMakeGuess} className="space-y-3">
               <label className="block">
-                <span className="font-fredoka text-sm font-bold text-neutral-700">
+                <span className="font-fredoka text-xs sm:text-sm font-bold text-neutral-700">
                   Qual é o seu chute? (Entre {currentDiff.min} e {currentDiff.max})
                 </span>
-                <div className="mt-2 flex gap-3">
+                <div className="mt-1.5 flex gap-2 sm:gap-3">
                   <input
                     type="number"
                     value={inputVal}
                     disabled={isWon || isGameOver}
                     onChange={(e) => setInputVal(e.target.value)}
                     placeholder={`Ex: ${Math.floor(currentDiff.max / 2)}`}
-                    className="flex-1 px-4 py-3 text-2xl font-fredoka font-bold rounded-2xl border-3 border-cajua-charcoal focus:outline-none focus:ring-4 focus:ring-cajua-yellow disabled:bg-neutral-100 disabled:opacity-60"
+                    className="flex-1 px-3 sm:px-4 py-2 sm:py-2.5 text-xl sm:text-2xl font-fredoka font-bold rounded-2xl border-2 sm:border-3 border-cajua-charcoal focus:outline-none focus:ring-4 focus:ring-cajua-yellow disabled:bg-neutral-100 disabled:opacity-60"
                     autoFocus
                   />
                   <button
                     type="submit"
                     disabled={isWon || isGameOver || !inputVal.trim()}
-                    className="px-6 py-3 bg-cajua-yellow hover:bg-amber-400 disabled:bg-neutral-300 text-cajua-charcoal font-fredoka font-bold text-lg rounded-2xl border-3 border-cajua-charcoal shadow-pop btn-pop disabled:cursor-not-allowed flex items-center gap-2"
+                    className="px-5 sm:px-6 py-2 sm:py-2.5 bg-cajua-yellow hover:bg-amber-400 disabled:bg-neutral-300 text-cajua-charcoal font-fredoka font-bold text-base sm:text-lg rounded-2xl border-2 sm:border-3 border-cajua-charcoal shadow-pop btn-pop disabled:cursor-not-allowed flex items-center gap-1.5 shrink-0"
                   >
                     <span>Chutar</span>
-                    <Play className="w-5 h-5 fill-current" />
+                    <Play className="w-4 h-4 fill-current" />
                   </button>
                 </div>
               </label>
             </form>
 
-            {/* MENSAGEM DE FEEDBACK EM DESTAQUE */}
+            {/* MENSAGEM DE FEEDBACK */}
             <div
-              className={`p-4 rounded-2xl border-3 border-cajua-charcoal flex items-start gap-3.5 transition-all animate-pop-in ${
+              className={`p-3.5 sm:p-4 rounded-2xl border-2 sm:border-3 border-cajua-charcoal flex items-start gap-3 transition-all animate-pop-in ${
                 statusMessage.type === 'success'
                   ? 'bg-cajua-green/20 text-green-950 border-green-800'
                   : statusMessage.type === 'error'
@@ -417,43 +387,38 @@ export default function GamePage() {
               }`}
             >
               {statusMessage.type === 'success' && (
-                <CheckCircle2 className="w-7 h-7 text-green-700 shrink-0 mt-0.5" />
+                <CheckCircle2 className="w-6 h-6 text-green-700 shrink-0 mt-0.5" />
               )}
               {statusMessage.type === 'error' && (
-                <AlertTriangle className="w-7 h-7 text-red-700 shrink-0 mt-0.5" />
+                <AlertTriangle className="w-6 h-6 text-red-700 shrink-0 mt-0.5" />
               )}
               {statusMessage.type === 'warning' && (
-                <HelpCircle className="w-7 h-7 text-amber-700 shrink-0 mt-0.5" />
+                <HelpCircle className="w-6 h-6 text-amber-700 shrink-0 mt-0.5" />
               )}
               {statusMessage.type === 'info' && (
-                <Sparkles className="w-7 h-7 text-cajua-orange shrink-0 mt-0.5" />
+                <Sparkles className="w-6 h-6 text-cajua-orange shrink-0 mt-0.5" />
               )}
-              <div>
-                <p className="font-fredoka font-bold text-lg leading-snug">
+              <div className="flex-1">
+                <p className="font-fredoka font-bold text-base sm:text-lg leading-snug">
                   {statusMessage.text}
                 </p>
                 {isWon && (
                   <p className="text-xs sm:text-sm font-semibold text-green-800 mt-1">
-                    🎉 Parabéns! Você precisou de apenas {validAttemptsCount} chute
+                    🎉 Parabéns! Você precisou de {validAttemptsCount} chute
                     {validAttemptsCount > 1 ? 's' : ''} válido{validAttemptsCount > 1 ? 's' : ''}!
-                    Seu recorde foi salvo no Hall da Fama.
-                  </p>
-                )}
-                {isGameOver && (
-                  <p className="text-xs sm:text-sm font-semibold text-red-800 mt-1">
-                    Não foi dessa vez! Tente novamente no botão abaixo para tentar acertar com menos palpites.
                   </p>
                 )}
               </div>
             </div>
 
-            {/* BOTÃO JOGAR NOVAMENTE QUANDO FINALIZAR */}
+            {/* BOTÃO JOGAR NOVAMENTE */}
             {(isWon || isGameOver) && (
               <button
+                type="button"
                 onClick={() => startNewGame(difficulty)}
-                className="w-full py-3.5 bg-cajua-charcoal text-white font-fredoka font-bold text-lg rounded-2xl border-3 border-cajua-charcoal shadow-pop btn-pop flex items-center justify-center gap-2 hover:bg-neutral-800"
+                className="w-full py-3 bg-cajua-charcoal text-white font-fredoka font-bold text-base rounded-2xl border-2 border-cajua-charcoal shadow-pop btn-pop flex items-center justify-center gap-2 hover:bg-neutral-800"
               >
-                <RotateCcw className="w-5 h-5" />
+                <RotateCcw className="w-4 h-4" />
                 <span>Jogar Novamente ({currentDiff.label})</span>
               </button>
             )}
@@ -461,39 +426,39 @@ export default function GamePage() {
 
           {/* HISTÓRICO DE CHUTES DA RODADA */}
           {guessHistory.length > 0 && (
-            <div className="bg-white p-6 rounded-3xl border-4 border-cajua-charcoal shadow-pop space-y-3">
-              <div className="flex items-center gap-2 text-cajua-charcoal font-fredoka font-bold text-sm">
+            <div className="bg-white p-4 sm:p-5 rounded-3xl border-4 border-cajua-charcoal shadow-pop space-y-2.5">
+              <div className="flex items-center gap-2 text-cajua-charcoal font-fredoka font-bold text-xs sm:text-sm">
                 <History className="w-4 h-4 text-cajua-blue" />
                 <span>Histórico de Chutes Válidos Desta Partida:</span>
               </div>
-              <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+              <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
                 {guessHistory.map((item, idx) => (
                   <div
                     key={idx}
-                    className="flex items-center justify-between p-2.5 rounded-xl bg-cajua-sand/70 border-2 border-cajua-charcoal/20 text-xs sm:text-sm"
+                    className="flex items-center justify-between p-2 rounded-xl bg-cajua-sand/70 border border-cajua-charcoal/20 text-xs"
                   >
                     <div className="flex items-center gap-2">
-                      <span className="font-fredoka font-bold bg-white px-2 py-0.5 rounded-lg border border-cajua-charcoal/40">
-                        Chute #{item.guessNumber}
+                      <span className="font-fredoka font-bold bg-white px-1.5 py-0.5 rounded border border-cajua-charcoal/30">
+                        #{item.guessNumber}
                       </span>
-                      <span className="font-fredoka font-extrabold text-base text-cajua-charcoal">
+                      <span className="font-fredoka font-extrabold text-sm text-cajua-charcoal">
                         {item.value}
                       </span>
                     </div>
-                    <div className="flex items-center gap-1.5 font-medium">
+                    <div className="flex items-center gap-1 font-medium">
                       {item.type === 'higher' && (
                         <span className="text-red-700 flex items-center gap-1">
-                          <ArrowDownCircle className="w-4 h-4" /> É menor
+                          <ArrowDownCircle className="w-3.5 h-3.5" /> É menor
                         </span>
                       )}
                       {item.type === 'lower' && (
                         <span className="text-blue-700 flex items-center gap-1">
-                          <ArrowUpCircle className="w-4 h-4" /> É maior
+                          <ArrowUpCircle className="w-3.5 h-3.5" /> É maior
                         </span>
                       )}
                       {item.type === 'correct' && (
                         <span className="text-green-700 font-bold flex items-center gap-1">
-                          <CheckCircle2 className="w-4 h-4" /> Acertou!
+                          <CheckCircle2 className="w-3.5 h-3.5" /> Acertou!
                         </span>
                       )}
                     </div>
@@ -504,8 +469,8 @@ export default function GamePage() {
           )}
         </div>
 
-        {/* COLUNA DIREITA: PÓDIO E RANKING NEON */}
-        <div className="lg:col-span-5">
+        {/* COLUNA DIREITA: PÓDIO E RANKING NEON (5 colunas) */}
+        <div className="lg:col-span-5 flex flex-col">
           <RankingPodium
             scores={scores}
             activeDifficulty={rankingDifficulty}
